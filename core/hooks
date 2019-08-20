@@ -1,0 +1,83 @@
+#!/bin/sh
+#
+# ondrejsika/hooks
+# 2019 Ondrej Sika <ondrej@ondrejsika.com>
+#
+
+error(){
+  echo "ERR: $1 (https://err.li/ondrejsika/hooks/$2)"
+  exit 1
+
+}
+
+check_git_dir(){
+  if [ ! -d .git ]
+  then
+    error ".git not found? Do you run this command in root of your Git repo?" "dot-git-not-found"
+  fi
+}
+
+download(){
+  curl -fsSL -o $2 https://raw.githubusercontent.com/ondrejsika/hooks/master/$1
+}
+
+download_script(){
+  download $1 $2
+  chmod +x $2
+}
+
+create_loader(){
+  mkdir -p .git/hooks/$1-hooks
+  cat > .git/hooks/$1 <<EOF
+#!/bin/sh
+#
+# ondrejsika/hooks
+# 2019 Ondrej Sika <ondrej@ondrejsika.com>
+#
+
+set -e
+
+if [ ! -f .git/hooks/$1-hooks/* ]
+then
+  exit 0
+fi
+
+for hook in .git/hooks/$1-hooks/*
+do
+  echo "RUNNING \$hook"
+  sh \$hook
+  echo
+done
+
+EOF
+  chmod +x .git/hooks/$1
+}
+
+add_hook(){
+  # cp hooks/$2 .git/hooks/$1-hooks/$2
+  download_script hooks/$2 .git/hooks/$1-hooks/$2
+}
+
+rm_hook(){
+  rm .git/hooks/$1-hooks/$2
+}
+
+check_git_dir
+
+case $1 in
+	init)
+    create_loader pre-commit
+		break
+		;;
+	add)
+		add_hook $2 $3
+		break
+		;;
+	rm)
+		rm_hook $2 $3
+		break
+		;;
+	*)
+		error "Show help by --help" "help"
+		;;
+  esac
